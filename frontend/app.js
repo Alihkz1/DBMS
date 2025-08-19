@@ -1,7 +1,9 @@
-function $(id) {
+let colCount = 0;
+
+function documentById(id) {
   return document.getElementById(id);
 }
-let colCount = 0;
+
 function addColumnRow() {
   colCount++;
   let div = document.createElement("div");
@@ -12,17 +14,18 @@ function addColumnRow() {
         <option value="INTEGER">INTEGER</option>
     </select>
     <button type="button" class="removeCol">x</button>`;
-  $("columns").appendChild(div);
+  documentById("columns").appendChild(div);
   div.querySelector(".removeCol").onclick = () => div.remove();
 }
 
-function fetchTables() {
+function fetchAllTables() {
+  // table select
   fetch("/tables")
     .then((r) => r.json())
-    .then((d) => {
-      let sel = $("tables");
+    .then((response) => {
+      let sel = documentById("tables");
       sel.innerHTML = "";
-      d.tables.forEach((t) => {
+      response.tables.forEach((t) => {
         let opt = document.createElement("option");
         opt.value = t;
         opt.text = t;
@@ -33,12 +36,13 @@ function fetchTables() {
 }
 
 function loadData() {
-  let table = $("tables").value;
+  // load selected table data
+  let table = documentById("tables").value;
   if (!table) return;
   fetch("/schema/" + table)
     .then((r) => r.json())
     .then((sch) => {
-      let insertArea = $("insertArea");
+      let insertArea = documentById("insertArea");
       insertArea.innerHTML = "";
       let title = document.createElement("div");
       title.innerHTML = "در این قسمت میتوانید رکورد جدید اضافه کنید";
@@ -75,41 +79,48 @@ function loadData() {
           });
       };
 
+      // READ
       fetch("/data/" + table)
         .then((r) => r.json())
-        .then((d) => {
-          let da = $("dataArea");
-          da.innerHTML = "";
-          if (d.rows.length == 0) {
-            da.innerHTML = "<p>رکوردی وجود ندارد</p>";
+        .then((tableDataResponse) => {
+          let dataArea = documentById("dataArea");
+          dataArea.innerHTML = "";
+          if (tableDataResponse.rows.length == 0) {
+            dataArea.innerHTML =
+              "<p style='background:red;padding: 10px 5px; text-align:center; color: white '>رکوردی وجود ندارد</p>";
             return;
           }
           let tbl = document.createElement("table");
           let tr = document.createElement("tr");
           tr.innerHTML =
             "<th>#</th>" +
-            d.columns.map((c) => "<th>" + c + "</th>").join("") +
+            tableDataResponse.schema.columns
+              .map((c) => "<th>" + c.name + "</th>")
+              .join("") +
             "<th>عملیات</th>";
           tbl.appendChild(tr);
-          d.rows.forEach((rw) => {
+          tableDataResponse.rows.forEach((rw, index) => {
             let tr = document.createElement("tr");
-            tr.dataset.key = rw["__key__"];
+            tr.dataset.key = index;
             tr.innerHTML =
               "<td>" +
-              rw["__key__"] +
+              (index + 1) +
               "</td>" +
-              d.columns.map((c) => "<td>" + (rw[c] || "") + "</td>").join("") +
-              `<td><button class='editBtn' style='margin:0 5px'>ویرایش</button><button onclick='delRow("${table}","${rw["__key__"]}")'>حذف</button></td>`;
+              tableDataResponse.schema.columns
+                .map((c) => "<td>" + (rw[c.name] || "") + "</td>")
+                .join("") +
+              `<td><button class='editBtn' style='margin:0 5px'>ویرایش</button><button onclick='deleteRowByKey("${table}","${index}")'>حذف</button></td>`;
             tbl.appendChild(tr);
           });
-          da.appendChild(tbl);
+          dataArea.appendChild(tbl);
 
+          // EDIT
           tbl.querySelectorAll(".editBtn").forEach((btn) => {
             btn.onclick = () => {
               let tr = btn.parentNode.parentNode;
               let key = tr.dataset.key;
               tr.querySelectorAll("td").forEach((td, i) => {
-                if (i > 0 && i <= d.columns.length) {
+                if (i > 0 && i <= tableDataResponse.schema.columns.length) {
                   let val = td.textContent;
                   td.innerHTML = `<input type="text" value="${val}">`;
                 }
@@ -118,10 +129,10 @@ function loadData() {
               btn.onclick = () => {
                 let inputs = tr.querySelectorAll("input");
                 let payload = {};
-                d.columns.forEach((c, i) => {
-                  payload[c] = inputs[i].value;
+                tableDataResponse.schema.columns.forEach((c, i) => {
+                  payload[c.name] = inputs[i].value;
                 });
-                fetch("/update/" + table + "/" + key, {
+                fetch("/update/" + table + "/" + key + 1, {
                   method: "POST",
                   body: JSON.stringify(payload),
                   headers: { "Content-Type": "application/json" },
@@ -137,8 +148,8 @@ function loadData() {
     });
 }
 
-function delRow(table, key) {
-  fetch("/delete/" + table + "/" + key, { method: "DELETE" })
+function deleteRowByKey(table, key) {
+  fetch("/delete/" + table + "/" + (key + 1), { method: "DELETE" })
     .then((r) => r.json())
     .then((res) => {
       if (res.ok) loadData();
@@ -146,12 +157,12 @@ function delRow(table, key) {
 }
 
 window.onload = () => {
-  $("addCol").onclick = addColumnRow;
-  $("createTableForm").onsubmit = (e) => {
+  documentById("addCol").onclick = addColumnRow;
+  documentById("createTableForm").onsubmit = (e) => {
     e.preventDefault();
-    let table = $("tableName").value;
+    let table = documentById("tableName").value;
     let cols = [];
-    $("columns")
+    documentById("columns")
       .querySelectorAll(".colRow")
       .forEach((row) => {
         let name = row.querySelector("input").value;
@@ -166,13 +177,13 @@ window.onload = () => {
       .then((r) => r.json())
       .then((res) => {
         if (res.ok) {
-          fetchTables();
-          $("tableName").value = "";
-          $("columns").innerHTML = "";
+          fetchAllTables();
+          documentById("tableName").value = "";
+          documentById("columns").innerHTML = "";
           colCount = 0;
         }
       });
   };
-  $("tables").onchange = loadData;
-  fetchTables();
+  documentById("tables").onchange = loadData;
+  fetchAllTables();
 };
