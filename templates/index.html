@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DBMS</title>
+    <link rel="stylesheet" href="../static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1 style="text-align: center;">Database Management System</h1>
+
+      <div class="card">
+        <h2>ساخت جدول جدید</h2>
+        <form id="createTableForm">
+          <div class="row">
+            <label>نام جدول جدید</label>
+            <input type="text" id="tableName" required />
+          </div>
+          <div class="row">
+            <label>افزودن ستون به جدول</label>
+            <button type="button" id="addCol">+</button>
+          </div>
+          <div id="columns"></div>
+          <div class="row">
+            <button type="submit" style="margin-top: 20px;">ایجاد جدول</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>مدیریت داده های جدول</h2>
+        <div class="row">
+          <label>انتخاب جدول</label>
+          <select id="tables"></select>
+        </div>
+        <div id="dataArea"></div>
+        <div id="insertArea"></div>
+      </div>
+    </div>
+    <script src="../static/app.js"></script>
+  </body>
+</html>
