@@ -4,19 +4,37 @@ function documentById(id) {
   return document.getElementById(id);
 }
 
-function addColumnRow() {
-  colCount++;
-  let div = document.createElement("div");
-  div.className = "colRow";
-  div.innerHTML = `<input type="text" placeholder="نام ستون" data-index="${colCount}" required>
-    <select>
-        <option value="TEXT">TEXT</option>
-        <option value="INTEGER">INTEGER</option>
-    </select>
-    <button type="button" class="removeCol">x</button>`;
-  documentById("columns").appendChild(div);
-  div.querySelector(".removeCol").onclick = () => div.remove();
-}
+window.onload = () => {
+  documentById("addCol").onclick = defineNewColumnToTable;
+  documentById("createTableForm").onsubmit = (e) => {
+    e.preventDefault();
+    let table = documentById("tableName").value;
+    let cols = [];
+    documentById("columns")
+      .querySelectorAll(".colRow")
+      .forEach((row) => {
+        let name = row.querySelector("input").value;
+        let type = row.querySelector("select").value;
+        if (name) cols.push({ name, type });
+      });
+    fetch("/create_table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ table, columns: cols, auto_id: true }),
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.ok) {
+          fetchAllTables();
+          documentById("tableName").value = "";
+          documentById("columns").innerHTML = "";
+          colCount = 0;
+        }
+      });
+  };
+  documentById("tables").onchange = retrieveTableData;
+  fetchAllTables();
+};
 
 function fetchAllTables() {
   // table select
@@ -31,11 +49,11 @@ function fetchAllTables() {
         opt.text = t;
         sel.appendChild(opt);
       });
-      loadData();
+      retrieveTableData();
     });
 }
 
-function loadData() {
+function retrieveTableData() {
   // load selected table data
   let table = documentById("tables").value;
   if (!table) return;
@@ -74,7 +92,7 @@ function loadData() {
           .then((r) => r.json())
           .then((res) => {
             if (res.ok) {
-              loadData();
+              retrieveTableData();
             }
           });
       };
@@ -102,6 +120,7 @@ function loadData() {
           tableDataResponse.rows.forEach((rw, index) => {
             let tr = document.createElement("tr");
             tr.dataset.key = index;
+            tr.dataset.rowid = rw.rowid;
             tr.innerHTML =
               "<td>" +
               (index + 1) +
@@ -109,7 +128,7 @@ function loadData() {
               tableDataResponse.schema.columns
                 .map((c) => "<td>" + (rw[c.name] || "") + "</td>")
                 .join("") +
-              `<td><button class='editBtn' style='margin:0 5px'>ویرایش</button><button onclick='deleteRowByKey("${table}","${index}")'>حذف</button></td>`;
+              `<td><button class='editBtn' style='margin:0 5px'>ویرایش</button><button onclick='deleteRowByRowIndex("${table}","${rw.rowid}")'>حذف</button></td>`;
             tbl.appendChild(tr);
           });
           dataArea.appendChild(tbl);
@@ -132,14 +151,14 @@ function loadData() {
                 tableDataResponse.schema.columns.forEach((c, i) => {
                   payload[c.name] = inputs[i].value;
                 });
-                fetch("/update/" + table + "/" + key + 1, {
+                fetch("/update/" + table + "/" + tr.dataset.rowid, {
                   method: "POST",
                   body: JSON.stringify(payload),
                   headers: { "Content-Type": "application/json" },
                 })
                   .then((r) => r.json())
                   .then((res) => {
-                    if (res.ok) loadData();
+                    if (res.ok) retrieveTableData();
                   });
               };
             };
@@ -148,42 +167,24 @@ function loadData() {
     });
 }
 
-function deleteRowByKey(table, key) {
-  fetch("/delete/" + table + "/" + (key + 1), { method: "DELETE" })
-    .then((r) => r.json())
-    .then((res) => {
-      if (res.ok) loadData();
-    });
+function defineNewColumnToTable() {
+  colCount++;
+  let div = document.createElement("div");
+  div.className = "colRow";
+  div.innerHTML = `<input type="text" placeholder="نام ستون" data-index="${colCount}" required>
+    <select>
+        <option value="TEXT">TEXT</option>
+        <option value="INTEGER">INTEGER</option>
+    </select>
+    <button type="button" class="removeCol">x</button>`;
+  documentById("columns").appendChild(div);
+  div.querySelector(".removeCol").onclick = () => div.remove();
 }
 
-window.onload = () => {
-  documentById("addCol").onclick = addColumnRow;
-  documentById("createTableForm").onsubmit = (e) => {
-    e.preventDefault();
-    let table = documentById("tableName").value;
-    let cols = [];
-    documentById("columns")
-      .querySelectorAll(".colRow")
-      .forEach((row) => {
-        let name = row.querySelector("input").value;
-        let type = row.querySelector("select").value;
-        if (name) cols.push({ name, type });
-      });
-    fetch("/create_table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ table, columns: cols, auto_id: false }),
-    })
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.ok) {
-          fetchAllTables();
-          documentById("tableName").value = "";
-          documentById("columns").innerHTML = "";
-          colCount = 0;
-        }
-      });
-  };
-  documentById("tables").onchange = loadData;
-  fetchAllTables();
-};
+function deleteRowByRowIndex(table, rowid) {
+  fetch("/delete/" + table + "/" + rowid, { method: "DELETE" })
+    .then((r) => r.json())
+    .then((res) => {
+      if (res.ok) retrieveTableData();
+    });
+}

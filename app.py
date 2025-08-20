@@ -34,8 +34,10 @@ def get_data(conn, table):
     s = get_schema(conn, table)
     if not s["ok"]:
         return s
-    cur = conn.execute(f"SELECT * FROM {qi(table)}")
-    rows = [dict(zip([c["name"] for c in s["columns"]], r)) for r in cur.fetchall()]
+    cur = conn.execute(f"SELECT rowid, * FROM {qi(table)}")
+    cols = ["rowid"] + [c["name"] for c in s["columns"]]
+    rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    
     return {"ok": True, "rows": rows, "schema": s}
 
 # --------------------- Static File Serving ---------------------
